@@ -1,3 +1,5 @@
+package com.monitoreo;
+
 /**
  * Clase que implementa la lógica de verificación de dispositivos
  */
@@ -12,11 +14,13 @@ public class Verificador {
         boolean resultado = d.verificarEstado();
         long tiempoRespuesta = System.currentTimeMillis() - inicio;
 
-        // Crear y retornar un evento con el resultado
+        // Crear una descripción y mostrar en consola (uso para evitar variables sin usar)
         String tipo = resultado ? "VERIFICACION_EXITOSA" : "VERIFICACION_FALLIDA";
-        String descripcion = String.format("Verificación del dispositivo %s (%s): %s",
-            d.getId(), d.getDireccionIP(), d.getEstado());
-        
+        String descripcion = String.format("%s - Verificación del dispositivo %s (%s): %s",
+            tipo, d.getId(), d.getDireccionIP(), d.getEstado());
+
+        System.out.println(descripcion + " - Tiempo respuesta: " + tiempoRespuesta + "ms");
+
         // Retornar el resultado de la verificación
         return resultado;
     }

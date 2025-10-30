@@ -1,9 +1,14 @@
+package com.monitoreo;
+
+import java.io.IOException;
+import java.net.UnknownHostException;
+
 /**
  * Clase que representa un dispositivo a monitorear en el sistema
  */
 public class Dispositivos {
-    private String id;              // Identificador único del dispositivo
-    private String direccionIP;     // Dirección IP del dispositivo
+    private final String id;              // Identificador único del dispositivo
+    private final String direccionIP;     // Dirección IP del dispositivo
     private String estado;          // Estado actual del dispositivo
 
     /**
@@ -27,8 +32,11 @@ public class Dispositivos {
             boolean alcanzable = address.isReachable(2000);
             this.estado = alcanzable ? "ACTIVO" : "INACTIVO";
             return alcanzable;
-        } catch (Exception e) {
-            this.estado = "ERROR";
+        } catch (UnknownHostException e) {
+            this.estado = "ERROR: Host desconocido";
+            return false;
+        } catch (IOException e) {
+            this.estado = "ERROR: Problema de conexión";
             return false;
         }
     }

@@ -1,6 +1,6 @@
+package com.monitoreo;
+
 import java.io.*;
-import java.net.InetSocketAddress;
-import java.net.Socket;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -52,21 +52,6 @@ public class Monitoreo {
     }
 
     /**
-     * Verifica la disponibilidad de un host intentando establecer una conexión TCP.
-     * @param host Nombre o dirección IP del host a verificar
-     * @return true si el host responde, false si no es alcanzable
-     */
-    private boolean pingHost(String host) {
-        // Intenta conectar al puerto 80 del host
-        try (Socket socket = new Socket()) {
-            socket.connect(new InetSocketAddress(host, 80), 2000);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /**
      * Inicia el proceso de monitoreo continuo de todos los hosts registrados.
      * Realiza verificaciones periódicas, actualiza estadísticas y genera reportes.
      */
@@ -76,54 +61,58 @@ public class Monitoreo {
     public void iniciar() {
         System.out.println("Inicio de monitoreo de dispositivos...");
         int ciclos = 0;
+        boolean ejecutando = true;
         
-        while (true) {
-            for (Dispositivos dispositivo : listaDispositivos) {
-                long inicio = System.currentTimeMillis();
-                boolean disponible = verificador.ejecutarPrueba(dispositivo);
-                long tiempoRespuesta = System.currentTimeMillis() - inicio;
-                
-                // Registrar evento
-                Eventos evento = new Eventos(
-                    disponible ? "VERIFICACION_EXITOSA" : "VERIFICACION_FALLIDA",
-                    "Verificación del dispositivo " + dispositivo.getId(),
-                    tiempoRespuesta
-                );
-                registroEventos.add(evento);
-                
-                // Actualizar estadísticas
-                HostEstadisticas stats = estadisticas.get(dispositivo.getId());
-                stats.registrarChequeo(disponible);
-                
-                // Evaluar alertas por rendimiento
-                if (manejoAlertas.evaluarAlerta(stats.getDisponibilidad(), (int)tiempoRespuesta)) {
-                    manejoAlertas.notificarAlerta(
-                        String.format("Alerta de rendimiento para %s - Disponibilidad: %.2f%%, Tiempo de respuesta: %dms",
-                            dispositivo.getId(), stats.getDisponibilidad(), tiempoRespuesta));
-                }
-            }
-            
-            ciclos++;
-            if (ciclos % 10 == 0) { // Generar reportes cada 10 ciclos
-                generadorReportes.generarReporteDiario();
-                generadorReportes.generarReporteDisponibilidad();
-            }
-            
+        while (ejecutando && !Thread.currentThread().isInterrupted()) {
             try {
+                for (Dispositivos dispositivo : listaDispositivos) {
+                    if (Thread.currentThread().isInterrupted()) {
+                        ejecutando = false;
+                        break;
+                    }
+                    
+                    long inicio = System.currentTimeMillis();
+                    boolean disponible = verificador.ejecutarPrueba(dispositivo);
+                    long tiempoRespuesta = System.currentTimeMillis() - inicio;
+                    
+                    // Registrar evento
+                    Eventos evento = new Eventos(
+                        disponible ? "VERIFICACION_EXITOSA" : "VERIFICACION_FALLIDA",
+                        "Verificación del dispositivo " + dispositivo.getId(),
+                        tiempoRespuesta
+                    );
+                    registroEventos.add(evento);
+                    
+                    // Actualizar estadísticas
+                    HostEstadisticas stats = estadisticas.get(dispositivo.getId());
+                    stats.registrarChequeo(disponible);
+                    
+                    // Evaluar alertas por rendimiento
+                    if (manejoAlertas.evaluarAlerta(stats.getDisponibilidad(), (int)tiempoRespuesta)) {
+                        manejoAlertas.notificarAlerta(
+                            String.format("Alerta de rendimiento para %s - Disponibilidad: %.2f%%, Tiempo de respuesta: %dms",
+                                dispositivo.getId(), stats.getDisponibilidad(), tiempoRespuesta));
+                    }
+                }
+                
+                if (!ejecutando) break;
+                
+                ciclos++;
+                if (ciclos % 10 == 0) { // Generar reportes cada 10 ciclos
+                    generadorReportes.generarReporteDiario();
+                    generadorReportes.generarReporteDisponibilidad();
+                }
+                
                 Thread.sleep(intervalo * 1000);
             } catch (InterruptedException ie) {
+                ejecutando = false;
                 Thread.currentThread().interrupt();
-                break;
             }
         }
+        
+        System.out.println("Monitoreo detenido.");
     }
 
-    private void alerta(String host, boolean disponible) {
-        String estado = disponible ? "ACTIVO" : "CAÍDO";
-        String mensaje = "[ALERTA] El host " + host + " está " + estado;
-        System.out.println(mensaje);
-        registrarEvento(mensaje);
-    }
 
     private void registrarEvento(String mensaje) {
         try (FileWriter fw = new FileWriter(LOG_FILE, true);
@@ -242,7 +231,11 @@ public class Monitoreo {
         monitor.iniciar();
     }
     
-    public ConfiguracionAlertas getConfiguracionAlertas() {
-        return configuracionAlertas;
+    /**
+     * Obtiene el manejador de alertas activo
+     * @return instancia de ManejoAlertas
+     */
+    public ManejoAlertas getManejoAlertas() {
+        return manejoAlertas;
     }
 }

@@ -1,3 +1,5 @@
+package com.monitoreo;
+
 import java.util.ArrayList;
 import java.util.function.Consumer;
 

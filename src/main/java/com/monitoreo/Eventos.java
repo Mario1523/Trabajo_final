@@ -1,13 +1,15 @@
+package com.monitoreo;
+
 import java.util.Date;
 
 /**
  * Clase que representa los eventos generados durante el monitoreo
  */
 public class Eventos {
-    private String tipo;            // Tipo de evento
-    private String descripcion;     // Descripción detallada del evento
-    private double tiempoRespuesta; // Tiempo de respuesta en milisegundos
-    private Date fechaHora;         // Fecha y hora del evento
+    private final String tipo;            // Tipo de evento
+    private final String descripcion;     // Descripción detallada del evento
+    private final double tiempoRespuesta; // Tiempo de respuesta en milisegundos
+    private final Date fechaHora;         // Fecha y hora del evento
 
     /**
      * Constructor de la clase Eventos
