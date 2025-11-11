@@ -14,14 +14,16 @@ import java.util.Map;
  */
 public class Monitoreo {
     private final ArrayList<Dispositivos> listaDispositivos;  // Lista de dispositivos a monitorear
-    private final int intervalo;                             // Intervalo entre chequeos en segundos
     private final ArrayList<Eventos> registroEventos;        // Registro de eventos del sistema
     private final Verificador verificador;                   // Verificador de dispositivos
     private final ManejoAlertas manejoAlertas;              // Sistema de manejo de alertas
     private final Map<String, HostEstadisticas> estadisticas; // Estadísticas por dispositivo
     private final GeneradorReportes generadorReportes;       // Generador de reportes
-    private static final String LOG_FILE = "monitoreo.log";
+    private final int intervalo;                             // Intervalo entre verificaciones en segundos
+    private static final String LOG_FILE = "monitoreo.log";  // Archivo de log
     private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private Thread threadMonitoreo;                           // Thread para ejecutar el monitoreo
+    private volatile boolean monitoreoActivo;                // Flag para controlar el monitoreo
 
     /**
      * Constructor de la clase Monitoreo
@@ -43,7 +45,7 @@ public class Monitoreo {
             estadisticas.put(host, new HostEstadisticas(host));
         }
         
-        this.generadorReportes = new GeneradorReportes("./reportes", estadisticas);
+        this.generadorReportes = new GeneradorReportes("reportes", estadisticas);
         
         // Configurar notificaciones por consola
         manejoAlertas.agregarObservador(mensaje -> System.out.println("[Notificación] " + mensaje));
@@ -56,61 +58,75 @@ public class Monitoreo {
      * Realiza verificaciones periódicas, actualiza estadísticas y genera reportes.
      */
     /**
-     * Inicia el proceso de monitoreo continuo de dispositivos
+     * Inicia el proceso de monitoreo continuo de dispositivos en un thread separado
      */
     public void iniciar() {
-        System.out.println("Inicio de monitoreo de dispositivos...");
-        int ciclos = 0;
-        boolean ejecutando = true;
-        
-        while (ejecutando && !Thread.currentThread().isInterrupted()) {
-            try {
-                for (Dispositivos dispositivo : listaDispositivos) {
-                    if (Thread.currentThread().isInterrupted()) {
-                        ejecutando = false;
-                        break;
-                    }
-                    
-                    long inicio = System.currentTimeMillis();
-                    boolean disponible = verificador.ejecutarPrueba(dispositivo);
-                    long tiempoRespuesta = System.currentTimeMillis() - inicio;
-                    
-                    // Registrar evento
-                    Eventos evento = new Eventos(
-                        disponible ? "VERIFICACION_EXITOSA" : "VERIFICACION_FALLIDA",
-                        "Verificación del dispositivo " + dispositivo.getId(),
-                        tiempoRespuesta
-                    );
-                    registroEventos.add(evento);
-                    
-                    // Actualizar estadísticas
-                    HostEstadisticas stats = estadisticas.get(dispositivo.getId());
-                    stats.registrarChequeo(disponible);
-                    
-                    // Evaluar alertas por rendimiento
-                    if (manejoAlertas.evaluarAlerta(stats.getDisponibilidad(), (int)tiempoRespuesta)) {
-                        manejoAlertas.notificarAlerta(
-                            String.format("Alerta de rendimiento para %s - Disponibilidad: %.2f%%, Tiempo de respuesta: %dms",
-                                dispositivo.getId(), stats.getDisponibilidad(), tiempoRespuesta));
-                    }
-                }
-                
-                if (!ejecutando) break;
-                
-                ciclos++;
-                if (ciclos % 10 == 0) { // Generar reportes cada 10 ciclos
-                    generadorReportes.generarReporteDiario();
-                    generadorReportes.generarReporteDisponibilidad();
-                }
-                
-                Thread.sleep(intervalo * 1000);
-            } catch (InterruptedException ie) {
-                ejecutando = false;
-                Thread.currentThread().interrupt();
-            }
+        if (monitoreoActivo) {
+            return; // Ya está ejecutándose
         }
         
-        System.out.println("Monitoreo detenido.");
+        monitoreoActivo = true;
+        threadMonitoreo = new Thread(() -> {
+            System.out.println("Inicio de monitoreo de dispositivos...");
+            int ciclos = 0;
+            
+            while (monitoreoActivo && !Thread.currentThread().isInterrupted()) {
+                try {
+                    for (Dispositivos dispositivo : listaDispositivos) {
+                        if (!monitoreoActivo || Thread.currentThread().isInterrupted()) {
+                            break;
+                        }
+                        
+                        long inicio = System.currentTimeMillis();
+                        boolean disponible = verificador.ejecutarPrueba(dispositivo);
+                        long tiempoRespuesta = System.currentTimeMillis() - inicio;
+                        
+                        // Registrar evento
+                        Eventos evento = new Eventos(
+                            disponible ? "VERIFICACION_EXITOSA" : "VERIFICACION_FALLIDA",
+                            "Verificación del dispositivo " + dispositivo.getId(),
+                            tiempoRespuesta
+                        );
+                        registroEventos.add(evento);
+                        
+                        // Actualizar estadísticas
+                        HostEstadisticas stats = estadisticas.get(dispositivo.getId());
+                        if (stats != null) {
+                            stats.registrarChequeo(disponible, tiempoRespuesta);
+                            
+                            // Evaluar alertas por rendimiento
+                            if (manejoAlertas.evaluarAlerta(stats.getDisponibilidad(), (int)tiempoRespuesta)) {
+                                manejoAlertas.notificarAlerta(
+                                    String.format("Alerta de rendimiento para %s - Disponibilidad: %.2f%%, Tiempo de respuesta: %dms",
+                                        dispositivo.getId(), stats.getDisponibilidad(), tiempoRespuesta));
+                            }
+                        }
+                    }
+                    
+                    ciclos++;
+                    if (ciclos % 10 == 0) { // Generar reportes cada 10 ciclos (solo PDF)
+                        String rutaDiario = generadorReportes.generarReporteDiario();
+                        String rutaDisponibilidad = generadorReportes.generarReporteDisponibilidad();
+                        if (rutaDiario != null) {
+                            registrarEvento("Reporte diario PDF generado: " + rutaDiario);
+                        }
+                        if (rutaDisponibilidad != null) {
+                            registrarEvento("Reporte de disponibilidad PDF generado: " + rutaDisponibilidad);
+                        }
+                    }
+                    
+                    Thread.sleep(intervalo * 1000);
+                } catch (InterruptedException ie) {
+                    monitoreoActivo = false;
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+            
+            System.out.println("Monitoreo detenido.");
+        });
+        threadMonitoreo.setDaemon(true);
+        threadMonitoreo.start();
     }
 
 
@@ -166,7 +182,49 @@ public class Monitoreo {
      */
     public void detenerMonitoreo() {
         registrarEvento("Deteniendo el monitoreo de dispositivos");
-        Thread.currentThread().interrupt();
+        monitoreoActivo = false;
+        if (threadMonitoreo != null) {
+            threadMonitoreo.interrupt();
+        }
+    }
+    
+    /**
+     * Verifica si el monitoreo está activo
+     * @return true si el monitoreo está ejecutándose
+     */
+    public boolean estaActivo() {
+        return monitoreoActivo;
+    }
+    
+    /**
+     * Obtiene las estadísticas de un dispositivo específico
+     * @param dispositivoId ID del dispositivo
+     * @return HostEstadisticas o null si no existe
+     */
+    public HostEstadisticas getEstadisticas(String dispositivoId) {
+        return estadisticas.get(dispositivoId);
+    }
+    
+    /**
+     * Obtiene todas las estadísticas
+     * @return Map con todas las estadísticas
+     */
+    public Map<String, HostEstadisticas> getAllEstadisticas() {
+        return new HashMap<>(estadisticas);
+    }
+    
+    /**
+     * Obtiene el dispositivo por su ID
+     * @param dispositivoId ID del dispositivo
+     * @return Dispositivos o null si no existe
+     */
+    public Dispositivos getDispositivo(String dispositivoId) {
+        for (Dispositivos d : listaDispositivos) {
+            if (d.getId().equals(dispositivoId)) {
+                return d;
+            }
+        }
+        return null;
     }
 
     // Método para pruebas funcionales
@@ -200,7 +258,8 @@ public class Monitoreo {
         // Prueba 3: Verificar conectividad
         System.out.println("\nPrueba 3: Verificar conectividad");
         Verificador verificador = new Verificador();
-        for (Dispositivos d : monitor.listaDispositivos) {
+        for (String dispositivoId : monitor.getDispositivos()) {
+            Dispositivos d = new Dispositivos(dispositivoId, dispositivoId);
             boolean disponible = verificador.ejecutarPrueba(d);
             System.out.println("Dispositivo: " + d.getId() + " - Disponible: " + disponible);
         }
@@ -237,5 +296,21 @@ public class Monitoreo {
      */
     public ManejoAlertas getManejoAlertas() {
         return manejoAlertas;
+    }
+    
+    /**
+     * Obtiene la lista completa de objetos Dispositivos
+     * @return ArrayList con todos los dispositivos monitoreados
+     */
+    public ArrayList<Dispositivos> getListaDispositivos() {
+        return new ArrayList<>(listaDispositivos);
+    }
+    
+    /**
+     * Obtiene el generador de reportes
+     * @return instancia de GeneradorReportes
+     */
+    public GeneradorReportes getGeneradorReportes() {
+        return generadorReportes;
     }
 }
