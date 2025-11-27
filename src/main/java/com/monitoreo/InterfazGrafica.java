@@ -6,15 +6,20 @@ import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GradientPaint;
+import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
+import java.awt.LayoutManager;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
+import java.util.Enumeration;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
@@ -23,6 +28,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
+import javax.swing.JSeparator;
 import javax.swing.JSpinner;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
@@ -32,6 +38,7 @@ import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableColumn;
 
 /**
  * Interfaz gráfica para el sistema de monitoreo de hosts y dispositivos de red.
@@ -42,6 +49,19 @@ import javax.swing.table.DefaultTableModel;
  * @version 1.0
  */
 public class InterfazGrafica extends JFrame {
+    private static final Color COLOR_FONDO = new Color(245, 248, 255);
+    private static final Color COLOR_PANEL = Color.WHITE;
+    private static final Color COLOR_TEXTO = new Color(34, 40, 49);
+    private static final Color COLOR_TEXTO_SUAVE = new Color(105, 117, 134);
+    private static final Color COLOR_BORDE = new Color(220, 226, 240);
+    private static final Color COLOR_ACCION_PRIMARIA = new Color(76, 132, 255);
+    private static final Color COLOR_ACCION_SECUNDARIA = new Color(78, 205, 196);
+    private static final Color COLOR_ACCION_PELIGRO = new Color(255, 99, 132);
+    private static final Color COLOR_ACCION_AVISO = new Color(255, 170, 76);
+    private static final Color COLOR_ACCION_OK = new Color(46, 213, 115);
+    private static final Color COLOR_GRADIENT_INICIO = new Color(108, 149, 255);
+    private static final Color COLOR_GRADIENT_FIN = new Color(165, 120, 255);
+
     // Componentes principales de la interfaz
     private Monitoreo monitoreo;                    // Instancia del sistema de monitoreo
     private DefaultTableModel tablaModelo;          // Modelo de datos para la tabla de dispositivos
@@ -82,7 +102,45 @@ public class InterfazGrafica extends JFrame {
         // Escanear red WiFi automáticamente al iniciar (opcional)
         escanearRedAlInicio();
     }
-    
+
+    private void estilizarBotonesSpinner(JSpinner spinner) {
+        for (java.awt.Component comp : spinner.getComponents()) {
+            if (comp instanceof javax.swing.JButton) {
+                javax.swing.JButton btn = (javax.swing.JButton) comp;
+                btn.setBackground(COLOR_ACCION_PRIMARIA);
+                btn.setForeground(Color.WHITE);
+                btn.setOpaque(true);
+                btn.setBorder(BorderFactory.createLineBorder(COLOR_ACCION_PRIMARIA.darker()));
+            }
+        }
+    }
+
+    private RoundedPanel crearCard(String titulo) {
+        RoundedPanel card = new RoundedPanel(new BorderLayout(), 24);
+        card.setBackground(COLOR_PANEL);
+        card.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createMatteBorder(1, 1, 1, 1, new Color(228, 234, 249)),
+            BorderFactory.createEmptyBorder(12, 18, 18, 18)
+        ));
+        card.add(crearEncabezadoSeccion(titulo), BorderLayout.NORTH);
+        return card;
+    }
+
+    private JPanel crearEncabezadoSeccion(String titulo) {
+        JPanel header = new JPanel(new BorderLayout());
+        header.setOpaque(false);
+        header.setBorder(BorderFactory.createEmptyBorder(0, 0, 12, 0));
+        JLabel label = new JLabel(titulo);
+        label.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 16));
+        label.setForeground(COLOR_TEXTO);
+        header.add(label, BorderLayout.WEST);
+        JSeparator separator = new JSeparator();
+        separator.setForeground(COLOR_BORDE);
+        separator.setBackground(COLOR_BORDE);
+        header.add(separator, BorderLayout.SOUTH);
+        return header;
+    }
+
     /**
      * Muestra un diálogo al iniciar la aplicación preguntando si se desea escanear la red.
      * Si el usuario acepta, inicia el escaneo automático de dispositivos en la red WiFi.
@@ -122,75 +180,87 @@ public class InterfazGrafica extends JFrame {
         };
         tablaDispositivos = new JTable(tablaModelo);
         tablaDispositivos.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        tablaDispositivos.setRowHeight(25);
+        tablaDispositivos.setRowHeight(26);
+        tablaDispositivos.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
         
         // Configurar área de alertas (no editable, solo lectura)
         areaAlertas = new JTextArea(10, 50);
         areaAlertas.setEditable(false);
-        areaAlertas.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        areaAlertas.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+        areaAlertas.setMargin(new java.awt.Insets(8, 10, 8, 10));
         
         // Configurar campos de texto para agregar dispositivos
         txtIdDispositivo = new JTextField(15);
-        txtIdDispositivo.setBackground(Color.BLACK); // Fondo negro
-        txtIdDispositivo.setForeground(Color.WHITE); // Texto blanco
+        txtIdDispositivo.setBackground(Color.WHITE);
+        txtIdDispositivo.setForeground(COLOR_TEXTO);
+        txtIdDispositivo.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
         txtIdDispositivo.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(100, 100, 100)), // Borde gris
+            BorderFactory.createLineBorder(COLOR_BORDE),
             BorderFactory.createEmptyBorder(5, 8, 5, 8)
         ));
         txtIPDispositivo = new JTextField(15);
-        txtIPDispositivo.setBackground(Color.BLACK); // Fondo negro
-        txtIPDispositivo.setForeground(Color.WHITE); // Texto blanco
+        txtIPDispositivo.setBackground(Color.WHITE);
+        txtIPDispositivo.setForeground(COLOR_TEXTO);
+        txtIPDispositivo.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13));
         txtIPDispositivo.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(100, 100, 100)), // Borde gris
+            BorderFactory.createLineBorder(COLOR_BORDE),
             BorderFactory.createEmptyBorder(5, 8, 5, 8)
         ));
         
         // Configurar spinner para intervalo de monitoreo (1-300 segundos, valor inicial 10)
         spinnerIntervalo = new JSpinner(new SpinnerNumberModel(10, 1, 300, 1));
         // Configurar colores del spinner: fondo negro y texto blanco
-        spinnerIntervalo.setBackground(Color.BLACK); // Fondo negro
-        spinnerIntervalo.setForeground(Color.WHITE); // Texto blanco
+        spinnerIntervalo.setBackground(Color.WHITE);
+        spinnerIntervalo.setForeground(COLOR_TEXTO);
         spinnerIntervalo.setOpaque(true);
         // Configurar el editor del spinner con fondo negro y texto blanco
         JSpinner.DefaultEditor editor = (JSpinner.DefaultEditor) spinnerIntervalo.getEditor();
-        editor.getTextField().setBackground(Color.BLACK); // Fondo negro
-        editor.getTextField().setForeground(Color.WHITE); // Texto blanco
-        editor.getTextField().setCaretColor(Color.WHITE); // Cursor blanco
+        editor.getTextField().setBackground(Color.WHITE);
+        editor.getTextField().setForeground(COLOR_TEXTO);
+        editor.getTextField().setCaretColor(COLOR_ACCION_PRIMARIA);
         editor.getTextField().setOpaque(true);
         editor.getTextField().setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12)); // Texto en negrita y más grande
         editor.getTextField().setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(150, 150, 150), 2), // Borde más grueso y claro
+            BorderFactory.createLineBorder(COLOR_ACCION_PRIMARIA, 2),
             BorderFactory.createEmptyBorder(3, 8, 3, 8) // Más padding
         ));
         
         // Configurar botón "Iniciar Monitoreo" (verde)
         btnIniciar = new JButton("Iniciar Monitoreo");
-        btnIniciar.setBackground(new Color(40, 167, 69));
+        btnIniciar.setBackground(COLOR_ACCION_OK);
         btnIniciar.setForeground(Color.WHITE);
         btnIniciar.setOpaque(true);
         btnIniciar.setBorderPainted(false);
         btnIniciar.setFocusPainted(false);
+        btnIniciar.setIcon(crearIconoBoton(COLOR_ACCION_OK.darker(), "\u25B6"));
+        btnIniciar.setIconTextGap(8);
         
         // Configurar botón "Detener Monitoreo" (rojo)
         btnDetener = new JButton("Detener Monitoreo");
-        btnDetener.setBackground(new Color(220, 53, 69));
+        btnDetener.setBackground(COLOR_ACCION_PELIGRO);
         btnDetener.setForeground(Color.WHITE);
         btnDetener.setOpaque(true);
         btnDetener.setBorderPainted(false);
         btnDetener.setFocusPainted(false);
         btnDetener.setEnabled(false); // Inicialmente deshabilitado
+        btnDetener.setIcon(crearIconoBoton(COLOR_ACCION_PELIGRO.darker(), "\u25A0"));
+        btnDetener.setIconTextGap(8);
         
         // Configurar botón "Escanear Red" (azul claro)
         btnEscanear = new JButton("Escanear Red");
+        btnEscanear.setIcon(crearIconoBoton(COLOR_ACCION_SECUNDARIA.darker(), "\uD83D\uDD0D"));
+        btnEscanear.setIconTextGap(6);
         
         // Configurar botón "Generar Informe PDF" (azul)
         btnGenerarPDF = new JButton("Generar Informe PDF");
-        btnGenerarPDF.setBackground(new Color(0, 123, 255));
+        btnGenerarPDF.setBackground(COLOR_ACCION_PRIMARIA);
         btnGenerarPDF.setForeground(Color.WHITE);
         btnGenerarPDF.setFocusPainted(false);
         btnGenerarPDF.setOpaque(true);
         btnGenerarPDF.setBorderPainted(false);
         btnGenerarPDF.setContentAreaFilled(true);
+        btnGenerarPDF.setIcon(crearIconoBoton(COLOR_ACCION_PRIMARIA.darker(), "PDF"));
+        btnGenerarPDF.setIconTextGap(8);
     }
 
     /**
@@ -201,116 +271,85 @@ public class InterfazGrafica extends JFrame {
         setTitle("Sistema de Monitoreo de Hosts");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         
-        // Configurar icono de la ventana
         try {
             setIconImage(crearIcono());
         } catch (Exception e) {
             System.err.println("No se pudo cargar el icono: " + e.getMessage());
         }
         
-        // Color de fondo principal: NEGRO
-        getContentPane().setBackground(Color.BLACK);
-        setLayout(new BorderLayout(10, 10));
+        getContentPane().setBackground(COLOR_FONDO);
+        setLayout(new BorderLayout(16, 16));
         
-        // Panel superior - Controles de monitoreo
-        JPanel panelControles = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        panelControles.setBackground(Color.BLACK); // Fondo negro
-        panelControles.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createLineBorder(new Color(100, 100, 100), 1), // Borde gris
-            "Controles de Monitoreo",
-            0, 0,
-            new Font(Font.SANS_SERIF, Font.BOLD, 12),
-            Color.WHITE // Texto blanco para el título del borde
-        ));
+        // Hero con gradiente
+        GradientPanel panelHero = new GradientPanel(COLOR_GRADIENT_INICIO, COLOR_GRADIENT_FIN);
+        panelHero.setLayout(new BorderLayout());
+        panelHero.setBorder(BorderFactory.createEmptyBorder(20, 26, 20, 26));
         
-        // Etiqueta y spinner para intervalo
+        JPanel heroContenido = new JPanel();
+        heroContenido.setOpaque(false);
+        heroContenido.setLayout(new BoxLayout(heroContenido, BoxLayout.Y_AXIS));
+        
+        JLabel lblTituloHero = new JLabel("Monitoreo Inteligente de Hosts");
+        lblTituloHero.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 22));
+        lblTituloHero.setForeground(Color.WHITE);
+        JLabel lblDescripcionHero = new JLabel("Supervisa, detecta y genera reportes en tiempo real con un vistazo.");
+        lblDescripcionHero.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 14));
+        lblDescripcionHero.setForeground(new Color(255, 255, 255, 210));
+        
+        heroContenido.add(lblTituloHero);
+        heroContenido.add(Box.createVerticalStrut(4));
+        heroContenido.add(lblDescripcionHero);
+        heroContenido.add(Box.createVerticalStrut(10));
+        
+        panelHero.add(heroContenido, BorderLayout.CENTER);
+        
+        // Card controles
+        RoundedPanel cardControles = crearCard("Acciones Rápidas");
+        JPanel panelControles = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 12));
+        panelControles.setOpaque(false);
         JLabel lblIntervalo = new JLabel("Intervalo (seg):");
-        lblIntervalo.setForeground(Color.WHITE); // Texto blanco
+        lblIntervalo.setForeground(COLOR_TEXTO);
         panelControles.add(lblIntervalo);
         panelControles.add(spinnerIntervalo);
-        spinnerIntervalo.setEnabled(false); // El intervalo se establece al crear el monitoreo
-        
-        // Configurar los botones del spinner (flechas) después de agregarlo al panel
-        SwingUtilities.invokeLater(() -> {
-            // Buscar y configurar los botones del spinner
-            for (java.awt.Component comp : spinnerIntervalo.getComponents()) {
-                if (comp instanceof javax.swing.JButton) {
-                    javax.swing.JButton btn = (javax.swing.JButton) comp;
-                    btn.setBackground(new Color(50, 50, 50)); // Fondo gris oscuro
-                    btn.setForeground(Color.WHITE); // Texto blanco
-                    btn.setOpaque(true);
-                    btn.setBorderPainted(true);
-                    btn.setBorder(BorderFactory.createLineBorder(new Color(100, 100, 100)));
-                }
-            }
-        });
-        
-        panelControles.add(Box.createHorizontalStrut(20));
-        
-        // Agregar botones al panel de controles
+        spinnerIntervalo.setEnabled(false);
+        SwingUtilities.invokeLater(() -> estilizarBotonesSpinner(spinnerIntervalo));
+        panelControles.add(Box.createHorizontalStrut(10));
         panelControles.add(btnIniciar);
         panelControles.add(btnDetener);
-        panelControles.add(Box.createHorizontalStrut(20));
         panelControles.add(btnGenerarPDF);
+        cardControles.add(panelControles, BorderLayout.CENTER);
         
-        // Panel central izquierdo - Tabla de dispositivos monitoreados
-        JPanel panelTabla = new JPanel(new BorderLayout());
-        panelTabla.setBackground(Color.BLACK); // Fondo negro
-        panelTabla.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createLineBorder(new Color(100, 100, 100), 1), // Borde gris
-            "Dispositivos Monitoreados",
-            0, 0,
-            new Font(Font.SANS_SERIF, Font.BOLD, 12),
-            Color.WHITE // Texto blanco
-        ));
-        JScrollPane scrollTabla = new JScrollPane(tablaDispositivos);
-        scrollTabla.setBackground(Color.BLACK);
-        scrollTabla.getViewport().setBackground(Color.BLACK);
-        panelTabla.add(scrollTabla, BorderLayout.CENTER);
+        JPanel panelSuperior = new JPanel(new BorderLayout(0, 12));
+        panelSuperior.setOpaque(false);
+        panelSuperior.add(panelHero, BorderLayout.NORTH);
+        panelSuperior.add(cardControles, BorderLayout.CENTER);
+        add(panelSuperior, BorderLayout.NORTH);
         
-        // Estilo de la tabla con tema oscuro
-        tablaDispositivos.setBackground(Color.BLACK); // Fondo negro para las filas
-        tablaDispositivos.setForeground(Color.WHITE); // Texto blanco
-        tablaDispositivos.setGridColor(new Color(60, 60, 60)); // Líneas grises oscuras
-        tablaDispositivos.setSelectionBackground(new Color(52, 152, 219)); // Fondo azul para selección
-        tablaDispositivos.setSelectionForeground(Color.WHITE); // Texto blanco en selección
-        tablaDispositivos.getTableHeader().setBackground(new Color(52, 152, 219)); // Encabezado azul
-        tablaDispositivos.getTableHeader().setForeground(Color.WHITE);
-        tablaDispositivos.getTableHeader().setFont(new Font(Font.SANS_SERIF, Font.BOLD, 11));
-        
-        // Panel para agregar dispositivos
-        JPanel panelAgregar = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        panelAgregar.setBackground(Color.BLACK); // Fondo negro
-        panelAgregar.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createLineBorder(new Color(100, 100, 100), 1), // Borde gris
-            "Agregar Dispositivo",
-            0, 0,
-            new Font(Font.SANS_SERIF, Font.BOLD, 12),
-            Color.WHITE // Texto blanco
-        ));
-        
-        // Etiquetas y campos para agregar dispositivo
+        // Card agregar
+        RoundedPanel cardAgregar = crearCard("Agregar Dispositivo");
+        JPanel panelAgregar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 10));
+        panelAgregar.setOpaque(false);
         JLabel lblId = new JLabel("ID:");
-        lblId.setForeground(Color.WHITE);
+        lblId.setForeground(COLOR_TEXTO);
         panelAgregar.add(lblId);
         panelAgregar.add(txtIdDispositivo);
         JLabel lblIP = new JLabel("IP/Host:");
-        lblIP.setForeground(Color.WHITE);
+        lblIP.setForeground(COLOR_TEXTO);
         panelAgregar.add(lblIP);
         panelAgregar.add(txtIPDispositivo);
         
-        // Botón "Agregar" (verde)
         JButton btnAgregar = new JButton("Agregar");
-        btnAgregar.setBackground(new Color(40, 167, 69));
+        btnAgregar.setBackground(COLOR_ACCION_OK);
         btnAgregar.setForeground(Color.WHITE);
         btnAgregar.setOpaque(true);
         btnAgregar.setBorderPainted(false);
         btnAgregar.setFocusPainted(false);
         btnAgregar.addActionListener(e -> agregarDispositivo());
+        btnAgregar.setIcon(crearIconoBoton(COLOR_ACCION_OK.darker(), "+"));
+        btnAgregar.setIconTextGap(6);
         panelAgregar.add(btnAgregar);
         
-        // Botón "Escanear Red" (azul claro)
-        btnEscanear.setBackground(new Color(23, 162, 184));
+        btnEscanear.setBackground(COLOR_ACCION_SECUNDARIA);
         btnEscanear.setForeground(Color.WHITE);
         btnEscanear.setOpaque(true);
         btnEscanear.setBorderPainted(false);
@@ -318,68 +357,82 @@ public class InterfazGrafica extends JFrame {
         btnEscanear.addActionListener(e -> escanearRed());
         panelAgregar.add(btnEscanear);
         
-        // Botón "Remover Seleccionado" (rojo)
         JButton btnRemover = new JButton("Remover Seleccionado");
-        btnRemover.setBackground(new Color(220, 53, 69));
+        btnRemover.setBackground(COLOR_ACCION_PELIGRO);
         btnRemover.setForeground(Color.WHITE);
         btnRemover.setOpaque(true);
         btnRemover.setBorderPainted(false);
         btnRemover.setFocusPainted(false);
         btnRemover.addActionListener(e -> removerDispositivo());
+        btnRemover.setIcon(crearIconoBoton(COLOR_ACCION_PELIGRO.darker(), "-"));
+        btnRemover.setIconTextGap(6);
         panelAgregar.add(btnRemover);
+        cardAgregar.add(panelAgregar, BorderLayout.CENTER);
         
-        // Panel izquierdo que contiene el panel de agregar y la tabla
-        JPanel panelIzquierdo = new JPanel(new BorderLayout());
-        panelIzquierdo.setBackground(Color.BLACK); // Fondo negro
-        panelIzquierdo.add(panelAgregar, BorderLayout.NORTH);
-        panelIzquierdo.add(panelTabla, BorderLayout.CENTER);
+        // Card tabla
+        RoundedPanel cardTabla = crearCard("Dispositivos Monitoreados");
+        tablaDispositivos.setBackground(Color.WHITE);
+        tablaDispositivos.setForeground(COLOR_TEXTO);
+        tablaDispositivos.setGridColor(COLOR_BORDE);
+        tablaDispositivos.setSelectionBackground(COLOR_ACCION_PRIMARIA);
+        tablaDispositivos.setSelectionForeground(Color.WHITE);
+        tablaDispositivos.setFillsViewportHeight(true);
+        tablaDispositivos.setRowSelectionAllowed(true);
+        tablaDispositivos.setColumnSelectionAllowed(false);
+        tablaDispositivos.setFocusable(true);
+        tablaDispositivos.setShowHorizontalLines(false);
+        tablaDispositivos.setShowVerticalLines(false);
+        tablaDispositivos.setIntercellSpacing(new Dimension(10, 8));
+        tablaDispositivos.setRowMargin(6);
+        estilizarEncabezadoTabla(tablaDispositivos);
+        JScrollPane scrollTabla = new JScrollPane(tablaDispositivos);
+        scrollTabla.setBorder(BorderFactory.createEmptyBorder());
+        scrollTabla.setBackground(COLOR_PANEL);
+        scrollTabla.getViewport().setBackground(COLOR_PANEL);
+        cardTabla.add(scrollTabla, BorderLayout.CENTER);
         
-        // Panel derecho - Alertas y eventos
-        JPanel panelAlertas = new JPanel(new BorderLayout());
-        panelAlertas.setBackground(Color.BLACK); // Fondo negro
-        panelAlertas.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createLineBorder(new Color(100, 100, 100), 1), // Borde gris
-            "Alertas y Eventos",
-            0, 0,
-            new Font(Font.SANS_SERIF, Font.BOLD, 12),
-            Color.WHITE // Texto blanco
-        ));
+        JPanel panelIzquierdo = new JPanel(new BorderLayout(0, 12));
+        panelIzquierdo.setOpaque(false);
+        panelIzquierdo.add(cardAgregar, BorderLayout.NORTH);
+        panelIzquierdo.add(cardTabla, BorderLayout.CENTER);
+        add(panelIzquierdo, BorderLayout.CENTER);
         
-        // Configurar área de alertas con tema oscuro
-        areaAlertas.setBackground(Color.BLACK); // Fondo negro
-        areaAlertas.setForeground(new Color(200, 200, 200)); // Texto gris claro
+        // Card alertas
+        RoundedPanel cardAlertas = crearCard("Alertas y Eventos");
+        areaAlertas.setBackground(Color.WHITE);
+        areaAlertas.setForeground(COLOR_TEXTO);
         JScrollPane scrollAlertas = new JScrollPane(areaAlertas);
-        scrollAlertas.setBackground(Color.BLACK);
-        scrollAlertas.getViewport().setBackground(Color.BLACK);
-        panelAlertas.add(scrollAlertas, BorderLayout.CENTER);
+        scrollAlertas.setBorder(BorderFactory.createEmptyBorder());
+        scrollAlertas.setBackground(COLOR_PANEL);
+        scrollAlertas.getViewport().setBackground(Color.WHITE);
+        cardAlertas.add(scrollAlertas, BorderLayout.CENTER);
         
-        // Botón "Limpiar Alertas" (gris)
         JButton btnLimpiar = new JButton("Limpiar Alertas");
-        btnLimpiar.setBackground(new Color(108, 117, 125));
+        btnLimpiar.setBackground(COLOR_ACCION_AVISO);
         btnLimpiar.setForeground(Color.WHITE);
         btnLimpiar.setOpaque(true);
         btnLimpiar.setBorderPainted(false);
         btnLimpiar.setFocusPainted(false);
         btnLimpiar.addActionListener(e -> areaAlertas.setText(""));
-        panelAlertas.add(btnLimpiar, BorderLayout.SOUTH);
+        btnLimpiar.setIcon(crearIconoBoton(COLOR_ACCION_AVISO.darker(), "\u267A"));
+        btnLimpiar.setIconTextGap(6);
         
-        // Layout principal: agregar todos los paneles
-        add(panelControles, BorderLayout.NORTH);
-        add(panelIzquierdo, BorderLayout.CENTER);
-        add(panelAlertas, BorderLayout.EAST);
+        JPanel footerAlertas = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        footerAlertas.setOpaque(false);
+        footerAlertas.add(btnLimpiar);
+        cardAlertas.add(footerAlertas, BorderLayout.SOUTH);
+        cardAlertas.setPreferredSize(new Dimension(340, 0));
+        add(cardAlertas, BorderLayout.EAST);
         
-        // Configurar eventos de botones principales
         btnIniciar.addActionListener(e -> iniciarMonitoreo());
         btnDetener.addActionListener(e -> detenerMonitoreo());
         btnGenerarPDF.addActionListener(e -> generarInformePDF());
         
-        // Actualizar tabla con datos iniciales
         actualizarTabla();
         
-        // Configurar tamaño y posición de la ventana
         pack();
         setLocationRelativeTo(null);
-        setMinimumSize(new Dimension(1000, 600));
+        setMinimumSize(new Dimension(1100, 650));
     }
 
     /**
@@ -523,13 +576,13 @@ public class InterfazGrafica extends JFrame {
         
         // Crear un diálogo de progreso para mostrar durante el escaneo
         JDialog dialogProgreso = new JDialog(this, "Escaneando Red", true);
-        dialogProgreso.getContentPane().setBackground(Color.BLACK); // Fondo negro
+        dialogProgreso.getContentPane().setBackground(COLOR_PANEL);
         JProgressBar progressBar = new JProgressBar();
         progressBar.setIndeterminate(true);
         JLabel lblMensaje = new JLabel("Escaneando dispositivos en la red...");
-        lblMensaje.setForeground(Color.WHITE); // Texto blanco
+        lblMensaje.setForeground(COLOR_TEXTO);
         JPanel panelProgreso = new JPanel(new BorderLayout(10, 10));
-        panelProgreso.setBackground(Color.BLACK); // Fondo negro
+        panelProgreso.setBackground(COLOR_PANEL);
         panelProgreso.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         panelProgreso.add(lblMensaje, BorderLayout.NORTH);
         panelProgreso.add(progressBar, BorderLayout.CENTER);
@@ -598,29 +651,31 @@ public class InterfazGrafica extends JFrame {
         }
         
         // Fondo del diálogo: NEGRO
-        dialog.getContentPane().setBackground(Color.BLACK);
+        dialog.getContentPane().setBackground(COLOR_PANEL);
         
         // Panel de encabezado con información de la red
         JPanel panelHeader = new JPanel(new BorderLayout());
         panelHeader.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
-        panelHeader.setBackground(Color.BLACK); // Fondo negro
-        
-        JLabel lblTitulo = new JLabel("<html><h2 style='color:white;'>Dispositivos Conectados</h2></html>");
+        panelHeader.setBackground(COLOR_PANEL);
+
+        JLabel lblTitulo = new JLabel("<html><h2 style='color:#222831;'>Dispositivos Conectados</h2></html>");
         JLabel lblDescripcion = new JLabel("Dispositivos detectados en tu red WiFi");
-        lblDescripcion.setForeground(Color.LIGHT_GRAY); // Texto gris claro
+        lblDescripcion.setForeground(COLOR_TEXTO_SUAVE);
         
         String redBase = EscaneadorRed.obtenerRedLocal();
         JLabel lblInfo = new JLabel("Red: " + redBase + ".x | Total: " + dispositivos.size() + " dispositivos");
         lblInfo.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 11));
-        lblInfo.setForeground(Color.LIGHT_GRAY); // Texto gris claro
+        lblInfo.setForeground(COLOR_TEXTO_SUAVE);
         
         // Botón "Actualizar" para volver a escanear
         JButton btnRefresh = new JButton("Actualizar");
-        btnRefresh.setBackground(new Color(0, 123, 255));
+        btnRefresh.setBackground(COLOR_ACCION_PRIMARIA);
         btnRefresh.setForeground(Color.WHITE);
         btnRefresh.setOpaque(true);
         btnRefresh.setBorderPainted(false);
         btnRefresh.setFocusPainted(false);
+        btnRefresh.setIcon(crearIconoBoton(COLOR_ACCION_PRIMARIA.darker(), "\u21BB"));
+        btnRefresh.setIconTextGap(6);
         btnRefresh.addActionListener(e -> {
             dialog.dispose();
             escanearRed();
@@ -629,7 +684,7 @@ public class InterfazGrafica extends JFrame {
         panelHeader.add(lblTitulo, BorderLayout.NORTH);
         panelHeader.add(lblDescripcion, BorderLayout.CENTER);
         JPanel panelInfo = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        panelInfo.setBackground(Color.BLACK); // Fondo negro
+        panelInfo.setBackground(COLOR_PANEL);
         panelInfo.add(lblInfo);
         panelInfo.add(Box.createHorizontalStrut(20));
         panelInfo.add(btnRefresh);
@@ -671,12 +726,12 @@ public class InterfazGrafica extends JFrame {
         JTable tabla = new JTable(modelo);
         tabla.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         tabla.setRowHeight(35);
-        tabla.setBackground(Color.BLACK); // Fondo negro
-        tabla.setForeground(Color.WHITE); // Texto blanco
-        tabla.setGridColor(new Color(60, 60, 60)); // Líneas grises oscuras
+        tabla.setBackground(Color.WHITE);
+        tabla.setForeground(COLOR_TEXTO);
+        tabla.setGridColor(COLOR_BORDE);
         tabla.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         tabla.getTableHeader().setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
-        tabla.getTableHeader().setBackground(new Color(52, 152, 219)); // Encabezado azul
+        tabla.getTableHeader().setBackground(COLOR_ACCION_PRIMARIA);
         tabla.getTableHeader().setForeground(Color.WHITE);
         
         // Ajustar ancho de columnas para mejor visualización
@@ -693,10 +748,10 @@ public class InterfazGrafica extends JFrame {
             public java.awt.Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
                 javax.swing.table.DefaultTableCellRenderer renderer = (javax.swing.table.DefaultTableCellRenderer) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 if (value != null && value.toString().equals("Activo")) {
-                    renderer.setForeground(new Color(0, 255, 0)); // Verde para activo
+                    renderer.setForeground(COLOR_ACCION_OK.darker()); // Verde para activo
                     renderer.setFont(renderer.getFont().deriveFont(Font.BOLD));
                 } else {
-                    renderer.setForeground(Color.RED); // Rojo para inactivo
+                    renderer.setForeground(COLOR_ACCION_PELIGRO.darker());
                 }
                 return renderer;
             }
@@ -718,27 +773,29 @@ public class InterfazGrafica extends JFrame {
         // ScrollPane con borde y tema oscuro
         JScrollPane scrollPane = new JScrollPane(tabla);
         scrollPane.setBorder(BorderFactory.createTitledBorder(
-            BorderFactory.createLineBorder(new Color(100, 100, 100), 1), // Borde gris
+            BorderFactory.createLineBorder(COLOR_BORDE, 1),
             "Connected Devices",
             0, 0,
             new Font(Font.SANS_SERIF, Font.BOLD, 12),
-            Color.WHITE // Texto blanco
+            COLOR_TEXTO
         ));
-        scrollPane.setBackground(Color.BLACK); // Fondo negro
-        scrollPane.getViewport().setBackground(Color.BLACK); // Fondo negro del viewport
+        scrollPane.setBackground(COLOR_PANEL);
+        scrollPane.getViewport().setBackground(Color.WHITE);
         
         // Panel de botones inferiores
         JPanel panelBotones = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
-        panelBotones.setBackground(Color.BLACK); // Fondo negro
+        panelBotones.setBackground(COLOR_PANEL);
         
         // Botón "Agregar Seleccionado" (azul)
         JButton btnAgregarSeleccionado = new JButton("Agregar Seleccionado");
-        btnAgregarSeleccionado.setBackground(new Color(0, 123, 255));
+        btnAgregarSeleccionado.setBackground(COLOR_ACCION_PRIMARIA);
         btnAgregarSeleccionado.setForeground(Color.WHITE);
         btnAgregarSeleccionado.setFocusPainted(false);
         btnAgregarSeleccionado.setOpaque(true);
         btnAgregarSeleccionado.setBorderPainted(false);
         btnAgregarSeleccionado.setContentAreaFilled(true);
+        btnAgregarSeleccionado.setIcon(crearIconoBoton(COLOR_ACCION_PRIMARIA.darker(), "\u2713"));
+        btnAgregarSeleccionado.setIconTextGap(6);
         btnAgregarSeleccionado.addActionListener(e -> {
             int fila = tabla.getSelectedRow();
             if (fila >= 0) {
@@ -753,21 +810,25 @@ public class InterfazGrafica extends JFrame {
         
         // Botón "Agregar Todos" (verde)
         JButton btnAgregarTodos = new JButton("Agregar Todos");
-        btnAgregarTodos.setBackground(new Color(40, 167, 69));
+        btnAgregarTodos.setBackground(COLOR_ACCION_OK);
         btnAgregarTodos.setForeground(Color.WHITE);
         btnAgregarTodos.setFocusPainted(false);
         btnAgregarTodos.setOpaque(true);
         btnAgregarTodos.setBorderPainted(false);
         btnAgregarTodos.setContentAreaFilled(true);
+        btnAgregarTodos.setIcon(crearIconoBoton(COLOR_ACCION_OK.darker(), "\u271A"));
+        btnAgregarTodos.setIconTextGap(6);
         
         // Botón "Cerrar" (gris)
         JButton btnCancelar = new JButton("Cerrar");
-        btnCancelar.setBackground(new Color(108, 117, 125));
+        btnCancelar.setBackground(COLOR_ACCION_AVISO);
         btnCancelar.setForeground(Color.WHITE);
         btnCancelar.setFocusPainted(false);
         btnCancelar.setOpaque(true);
         btnCancelar.setBorderPainted(false);
         btnCancelar.setContentAreaFilled(true);
+        btnCancelar.setIcon(crearIconoBoton(COLOR_ACCION_AVISO.darker(), "\u2715"));
+        btnCancelar.setIconTextGap(6);
         
         // Acción del botón "Agregar Todos"
         btnAgregarTodos.addActionListener(e -> {
@@ -803,6 +864,86 @@ public class InterfazGrafica extends JFrame {
         dialog.add(panelBotones, BorderLayout.SOUTH);
         
         dialog.setVisible(true);
+    }
+
+    private void estilizarEncabezadoTabla(JTable tabla) {
+        javax.swing.table.DefaultTableCellRenderer headerRenderer = new javax.swing.table.DefaultTableCellRenderer() {
+            @Override
+            public java.awt.Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+                JLabel header = (JLabel) super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                header.setOpaque(true);
+                header.setBackground(COLOR_ACCION_PRIMARIA.darker());
+                header.setForeground(Color.WHITE);
+                header.setHorizontalAlignment(JLabel.CENTER);
+                header.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 13));
+                header.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, COLOR_BORDE));
+                return header;
+            }
+        };
+        Enumeration<TableColumn> columnas = tabla.getColumnModel().getColumns();
+        while (columnas.hasMoreElements()) {
+            columnas.nextElement().setHeaderRenderer(headerRenderer);
+        }
+        tabla.getTableHeader().setPreferredSize(new Dimension(0, 34));
+    }
+
+    private ImageIcon crearIconoBoton(Color colorFondo, String simbolo) {
+        int size = 18;
+        BufferedImage icono = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2d = icono.createGraphics();
+        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g2d.setColor(colorFondo);
+        g2d.fillRoundRect(0, 0, size - 1, size - 1, 6, 6);
+        g2d.setColor(Color.WHITE);
+        g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, simbolo.length() > 2 ? 9 : 12));
+        java.awt.font.FontRenderContext frc = g2d.getFontRenderContext();
+        java.awt.geom.Rectangle2D bounds = g2d.getFont().getStringBounds(simbolo, frc);
+        int x = (int) ((size - bounds.getWidth()) / 2);
+        int y = (int) ((size - bounds.getHeight()) / 2 - bounds.getY());
+        g2d.drawString(simbolo, x, y);
+        g2d.dispose();
+        return new ImageIcon(icono);
+    }
+
+    private static class RoundedPanel extends JPanel {
+        private final int radius;
+
+        RoundedPanel(LayoutManager layout, int radius) {
+            super(layout);
+            this.radius = radius;
+            setOpaque(false);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(getBackground());
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), radius, radius);
+            g2.dispose();
+            super.paintComponent(g);
+        }
+    }
+
+    private static class GradientPanel extends JPanel {
+        private final Color inicio;
+        private final Color fin;
+
+        GradientPanel(Color inicio, Color fin) {
+            this.inicio = inicio;
+            this.fin = fin;
+            setOpaque(false);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setPaint(new GradientPaint(0, 0, inicio, getWidth(), getHeight(), fin));
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 30, 30);
+            g2.dispose();
+            super.paintComponent(g);
+        }
     }
     
     /**
