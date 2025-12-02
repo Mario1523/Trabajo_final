@@ -5,13 +5,6 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
-import java.awt.GradientPaint;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.Image;
-import java.awt.LayoutManager;
-import java.awt.RenderingHints;
-import java.awt.image.BufferedImage;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -19,10 +12,8 @@ import java.util.Enumeration;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
-import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JDialog;
-import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -48,19 +39,7 @@ import javax.swing.table.TableColumn;
  * @author Sistema de Monitoreo
  * @version 1.0
  */
-public class InterfazGrafica extends JFrame {
-    private static final Color COLOR_FONDO = new Color(245, 248, 255);
-    private static final Color COLOR_PANEL = Color.WHITE;
-    private static final Color COLOR_TEXTO = new Color(34, 40, 49);
-    private static final Color COLOR_TEXTO_SUAVE = new Color(105, 117, 134);
-    private static final Color COLOR_BORDE = new Color(220, 226, 240);
-    private static final Color COLOR_ACCION_PRIMARIA = new Color(76, 132, 255);
-    private static final Color COLOR_ACCION_SECUNDARIA = new Color(78, 205, 196);
-    private static final Color COLOR_ACCION_PELIGRO = new Color(255, 99, 132);
-    private static final Color COLOR_ACCION_AVISO = new Color(255, 170, 76);
-    private static final Color COLOR_ACCION_OK = new Color(46, 213, 115);
-    private static final Color COLOR_GRADIENT_INICIO = new Color(108, 149, 255);
-    private static final Color COLOR_GRADIENT_FIN = new Color(165, 120, 255);
+public class InterfazGrafica extends VentanaMonitoreoBase {
 
     // Componentes principales de la interfaz
     private Monitoreo monitoreo;                    // Instancia del sistema de monitoreo
@@ -84,6 +63,7 @@ public class InterfazGrafica extends JFrame {
      * @param monitoreo Instancia del sistema de monitoreo a utilizar
      */
     public InterfazGrafica(Monitoreo monitoreo) {
+        super("Sistema de Monitoreo de Hosts");
         this.monitoreo = monitoreo;
         this.formatoDecimal = new DecimalFormat("#.##");
         
@@ -269,15 +249,6 @@ public class InterfazGrafica extends JFrame {
      */
     private void configurarInterfaz() {
         setTitle("Sistema de Monitoreo de Hosts");
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        
-        try {
-            setIconImage(crearIcono());
-        } catch (Exception e) {
-            System.err.println("No se pudo cargar el icono: " + e.getMessage());
-        }
-        
-        getContentPane().setBackground(COLOR_FONDO);
         setLayout(new BorderLayout(16, 16));
         
         // Hero con gradiente
@@ -887,65 +858,9 @@ public class InterfazGrafica extends JFrame {
         tabla.getTableHeader().setPreferredSize(new Dimension(0, 34));
     }
 
-    private ImageIcon crearIconoBoton(Color colorFondo, String simbolo) {
-        int size = 18;
-        BufferedImage icono = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2d = icono.createGraphics();
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g2d.setColor(colorFondo);
-        g2d.fillRoundRect(0, 0, size - 1, size - 1, 6, 6);
-        g2d.setColor(Color.WHITE);
-        g2d.setFont(new Font(Font.SANS_SERIF, Font.BOLD, simbolo.length() > 2 ? 9 : 12));
-        java.awt.font.FontRenderContext frc = g2d.getFontRenderContext();
-        java.awt.geom.Rectangle2D bounds = g2d.getFont().getStringBounds(simbolo, frc);
-        int x = (int) ((size - bounds.getWidth()) / 2);
-        int y = (int) ((size - bounds.getHeight()) / 2 - bounds.getY());
-        g2d.drawString(simbolo, x, y);
-        g2d.dispose();
-        return new ImageIcon(icono);
-    }
+    // Las clases RoundedPanel y GradientPanel ahora se heredan desde VentanaMonitoreoBase
+    // mediante VentanaMonitoreoBase.RoundedPanel y VentanaMonitoreoBase.GradientPanel.
 
-    private static class RoundedPanel extends JPanel {
-        private final int radius;
-
-        RoundedPanel(LayoutManager layout, int radius) {
-            super(layout);
-            this.radius = radius;
-            setOpaque(false);
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(getBackground());
-            g2.fillRoundRect(0, 0, getWidth(), getHeight(), radius, radius);
-            g2.dispose();
-            super.paintComponent(g);
-        }
-    }
-
-    private static class GradientPanel extends JPanel {
-        private final Color inicio;
-        private final Color fin;
-
-        GradientPanel(Color inicio, Color fin) {
-            this.inicio = inicio;
-            this.fin = fin;
-            setOpaque(false);
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setPaint(new GradientPaint(0, 0, inicio, getWidth(), getHeight(), fin));
-            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 30, 30);
-            g2.dispose();
-            super.paintComponent(g);
-        }
-    }
-    
     /**
      * Agrega un dispositivo desde la lista de dispositivos encontrados al sistema de monitoreo.
      * 
@@ -1031,44 +946,6 @@ public class InterfazGrafica extends JFrame {
                 });
             }
         }).start();
-    }
-
-    /**
-     * Crea un icono personalizado para la aplicación.
-     * El icono representa un símbolo de red/monitoreo con un nodo central y ondas concéntricas.
-     * 
-     * @return Imagen del icono generado
-     */
-    private Image crearIcono() {
-        int size = 32;
-        BufferedImage icon = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g2d = icon.createGraphics();
-        g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        
-        // Fondo con gradiente azul
-        GradientPaint gradient = new GradientPaint(0, 0, new Color(52, 152, 219), 
-                                                    size, size, new Color(41, 128, 185));
-        g2d.setPaint(gradient);
-        g2d.fillRoundRect(2, 2, size - 4, size - 4, 6, 6);
-        
-        // Dibujar símbolo de red/monitoreo
-        g2d.setColor(Color.WHITE);
-        g2d.setStroke(new java.awt.BasicStroke(2.5f));
-        
-        // Dibujar círculo central (nodo de red)
-        int centerX = size / 2;
-        int centerY = size / 2;
-        g2d.fillOval(centerX - 4, centerY - 4, 8, 8);
-        
-        // Dibujar líneas de conexión (ondas concéntricas)
-        g2d.setStroke(new java.awt.BasicStroke(1.5f));
-        for (int i = 0; i < 3; i++) {
-            int radius = 8 + i * 4;
-            g2d.drawArc(centerX - radius, centerY - radius, radius * 2, radius * 2, 0, 360);
-        }
-        
-        g2d.dispose();
-        return icon;
     }
 
     /**
